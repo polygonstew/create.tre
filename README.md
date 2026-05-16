@@ -34,7 +34,7 @@ companion to [read.tre](https://github.com/polygonstew/read.tre), the CLI that s
 
 ## why
 
-writing trees in readmes and design docs and then manually `mkdir`/`touch`ing every line is tedious. one right-click should fix that.
+writing trees in readmes and design docs and then manually `mkdir`/ touching every line is tedious. one right-click should fix that.
 
 ## install
 
