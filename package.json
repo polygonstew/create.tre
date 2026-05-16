@@ -41,6 +41,12 @@
           "when": "resourceExtname == .tre",
           "group": "createTre"
         }
+        ,   
+        {
+          "command": "createTre.folderToTree",
+          "when": "explorerResourceIsFolder",
+          "group": "createTre@1"
+        }
       ],
       "editor/context": [
         {
