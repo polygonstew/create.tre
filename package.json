@@ -15,8 +15,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "createTre.helloWorld",
-        "title": "create.tre: Hello"
+        "command": "createTre.testParser",
+        "title": "create.tre: Test Parser"
       }
     ]
   },
