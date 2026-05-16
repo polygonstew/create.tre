@@ -1,26 +1,32 @@
 {
-  "name": "create.tre",
-  "version": "1.0.0",
-  "description": "vscode extension. write a tree like this:",
-  "main": "index.js",
+  "name": "create-tre",
+  "displayName": "create.tre",
+  "description": "create files and folders from a tree text",
+  "version": "0.0.1",
+  "publisher": "polygonstew",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "createTre.helloWorld",
+        "title": "create.tre: Hello"
+      }
+    ]
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/polygonstew/create.tre.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/polygonstew/create.tre/issues"
-  },
-  "homepage": "https://github.com/polygonstew/create.tre#readme",
   "devDependencies": {
-    "@types/node": "^25.8.0",
-    "@types/vscode": "^1.120.0",
-    "typescript": "^6.0.3"
+    "typescript": "^5.4.0",
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^20.0.0"
   }
 }
