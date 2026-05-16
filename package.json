@@ -1,0 +1,26 @@
+{
+  "name": "create.tre",
+  "version": "1.0.0",
+  "description": "vscode extension. write a tree like this:",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polygonstew/create.tre.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/polygonstew/create.tre/issues"
+  },
+  "homepage": "https://github.com/polygonstew/create.tre#readme",
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/vscode": "^1.120.0",
+    "typescript": "^6.0.3"
+  }
+}
