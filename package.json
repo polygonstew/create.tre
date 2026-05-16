@@ -13,12 +13,48 @@
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
+    "languages": [
+      {
+        "id": "tre",
+        "extensions": [".tre"],
+        "aliases": ["tre"]
+      }
+    ],
     "commands": [
       {
-        "command": "createTre.testParser",
-        "title": "create.tre: Test Parser"
+        "command": "createTre.createFromFile",
+        "title": "create.tre: Create From File"
+      },
+      {
+        "command": "createTre.createFromSelection",
+        "title": "create.tre: Create From Selection"
+      },
+      {
+        "command": "createTre.previewFromSelection",
+        "title": "create.tre: Preview From Selection"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "createTre.createFromFile",
+          "when": "resourceExtname == .tre",
+          "group": "createTre"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "createTre.createFromSelection",
+          "when": "editorHasSelection",
+          "group": "createTre"
+        },
+        {
+          "command": "createTre.previewFromSelection",
+          "when": "editorHasSelection",
+          "group": "createTre"
+        }
+      ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
