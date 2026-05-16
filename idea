@@ -1,0 +1,9 @@
+Extenstion .tre plugin for VScode that will use markdown like below and will create the tree shown.
+
+ollama_bpy_assistant/
+├── __init__.py          # bl_info + register/unregister
+├── panel.py             # UI definitions
+├── operators.py         # Generate / Execute / Clear actions
+├── ollama_client.py     # HTTP + threading
+├── safety.py            # Forbidden-pattern filter
+└── ARCHITECTURE.md      # this file
