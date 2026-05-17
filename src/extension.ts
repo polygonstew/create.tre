@@ -113,13 +113,17 @@ async function folderToTree(uri?: vscode.Uri) {
     await vscode.window.showTextDocument(doc);
 }
 
+// simple 2-space format. matches read.tre output.
 function generateTree(rootPath: string): string {
-    const lines: string[] = [path.basename(rootPath) + '/'];
-    walkDir(rootPath, '', lines);
+    const lines: string[] = [];
+    walkDir(rootPath, 0, lines);
     return lines.join('\n') + '\n';
 }
 
-function walkDir(dir: string, prefix: string, lines: string[]) {
+function walkDir(dir: string, depth: number, lines: string[]) {
+    const indent = '  '.repeat(depth);
+    lines.push(indent + path.basename(dir) + '/');
+
     let items: fs.Dirent[];
     try {
         items = fs.readdirSync(dir, { withFileTypes: true });
@@ -136,17 +140,13 @@ function walkDir(dir: string, prefix: string, lines: string[]) {
             return a.name.localeCompare(b.name);
         });
 
-    filtered.forEach((entry, idx) => {
-        const isLast = idx === filtered.length - 1;
-        const connector = isLast ? '└── ' : '├── ';
-        const name = entry.name + (entry.isDirectory() ? '/' : '');
-        lines.push(prefix + connector + name);
-
+    for (const entry of filtered) {
         if (entry.isDirectory()) {
-            const nextPrefix = prefix + (isLast ? '    ' : '│   ');
-            walkDir(path.join(dir, entry.name), nextPrefix, lines);
+            walkDir(path.join(dir, entry.name), depth + 1, lines);
+        } else {
+            lines.push('  '.repeat(depth + 1) + entry.name);
         }
-    });
+    }
 }
 
 // ── shared create logic ───────────────────────────────────────────────

@@ -32,6 +32,10 @@
       {
         "command": "createTre.previewFromSelection",
         "title": "create.tre: Preview From Selection"
+      },
+      {
+        "command": "createTre.folderToTree",
+        "title": "create.tre: Folder To Tree"
       }
     ],
     "menus": {
@@ -40,8 +44,7 @@
           "command": "createTre.createFromFile",
           "when": "resourceExtname == .tre",
           "group": "createTre"
-        }
-        ,   
+        },
         {
           "command": "createTre.folderToTree",
           "when": "explorerResourceIsFolder",
