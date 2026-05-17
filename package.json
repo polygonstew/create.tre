@@ -13,9 +13,9 @@
   "type": "git",
   "url": "https://github.com/polygonstew/create.tre"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other", "Snippets"],
+  "keywords": ["tree", "scaffold", "filesystem", "folder", "template", "directory"]
+  ,
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
