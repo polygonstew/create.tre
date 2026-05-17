@@ -3,9 +3,14 @@
   "displayName": "create.tre",
   "description": "create files and folders from a tree text",
   "version": "0.0.1",
+  "license": "MIT",
   "publisher": "polygonstew",
   "engines": {
     "vscode": "^1.80.0"
+  },
+  "repository": {
+  "type": "git",
+  "url": "https://github.com/polygonstew/create.tre"
   },
   "categories": [
     "Other"
