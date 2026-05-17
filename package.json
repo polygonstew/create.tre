@@ -1,8 +1,9 @@
 {
   "name": "create-tre",
+  "icon": "icon.png",
   "displayName": "create.tre",
   "description": "create files and folders from a tree text",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "publisher": "polygonstew",
   "engines": {
