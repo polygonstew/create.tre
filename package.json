@@ -3,27 +3,40 @@
   "icon": "icon.png",
   "displayName": "create.tre",
   "description": "create files and folders from a tree text",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "publisher": "polygonstew",
   "engines": {
     "vscode": "^1.80.0"
   },
   "repository": {
-  "type": "git",
-  "url": "https://github.com/polygonstew/create.tre"
+    "type": "git",
+    "url": "https://github.com/polygonstew/create.tre"
   },
-  "categories": ["Other", "Snippets"],
-  "keywords": ["tree", "scaffold", "filesystem", "folder", "template", "directory"]
-  ,
+  "categories": [
+    "Other",
+    "Snippets"
+  ],
+  "keywords": [
+    "tree",
+    "scaffold",
+    "filesystem",
+    "folder",
+    "template",
+    "directory"
+  ],
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
     "languages": [
       {
         "id": "tre",
-        "extensions": [".tre"],
-        "aliases": ["tre"]
+        "extensions": [
+          ".tre"
+        ],
+        "aliases": [
+          "tre"
+        ]
       }
     ],
     "commands": [
