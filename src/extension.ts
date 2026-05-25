@@ -1,200 +1,124 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTree } from './parser';
-
-let output: vscode.OutputChannel;
-
-const IGNORE = new Set(['.git', 'node_modules', '__pycache__', 'out', 'dist', '.venv', '.vscode-test']);
+import { parseTreeToStructure, extractTreeLines } from './parser';
 
 export function activate(context: vscode.ExtensionContext) {
-    output = vscode.window.createOutputChannel('create.tre');
-    output.appendLine('create.tre activated');
-    console.log('create.tre activated');
+    // Command: generate .tre from a folder
+    let folderToTree = vscode.commands.registerCommand('create.tre.folderToTree', async (uri?: vscode.Uri) => {
+        let targetFolder: string | undefined;
+        if (uri && uri.fsPath) {
+            const stat = fs.statSync(uri.fsPath);
+            if (stat.isDirectory()) targetFolder = uri.fsPath;
+            else targetFolder = path.dirname(uri.fsPath);
+        } else {
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders && folders.length > 0) targetFolder = folders[0].uri.fsPath;
+            else targetFolder = undefined;
+        }
+        if (!targetFolder) {
+            vscode.window.showErrorMessage('No folder selected.');
+            return;
+        }
+        const outputTree = walkDirectory(targetFolder);
+        const outputFileName = path.basename(targetFolder) + '.tre';
+        const outputPath = path.join(targetFolder, outputFileName);
+        fs.writeFileSync(outputPath, outputTree, 'utf8');
+        vscode.window.showInformationMessage(`Created ${outputFileName}`);
+        const doc = await vscode.workspace.openTextDocument(outputPath);
+        await vscode.window.showTextDocument(doc);
+    });
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('createTre.createFromFile', createFromFile),
-        vscode.commands.registerCommand('createTre.createFromSelection', createFromSelection),
-        vscode.commands.registerCommand('createTre.previewFromSelection', previewFromSelection),
-        vscode.commands.registerCommand('createTre.folderToTree', folderToTree),
-    );
+    // Command: create folders/files from a .tre file (selected in explorer)
+    let createFromFile = vscode.commands.registerCommand('create.tre.createFromFile', async (uri: vscode.Uri) => {
+        if (!uri || !uri.fsPath) {
+            vscode.window.showErrorMessage('No file selected.');
+            return;
+        }
+        const filePath = uri.fsPath;
+        if (!filePath.endsWith('.tre')) {
+            vscode.window.showWarningMessage('Selected file is not a .tre file.');
+            return;
+        }
+        const content = fs.readFileSync(filePath, 'utf8');
+        const treeLines = extractTreeLines(content);
+        if (treeLines.length === 0) {
+            vscode.window.showErrorMessage('No valid tree structure found in the file.');
+            return;
+        }
+        const rootName = path.basename(filePath, '.tre');
+        const targetDir = path.dirname(filePath);
+        const basePath = path.join(targetDir, rootName);
+        try {
+            parseTreeToStructure(treeLines, basePath);
+            vscode.window.showInformationMessage(`Materialized structure to ${basePath}`);
+            vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(basePath));
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Error: ${err.message}`);
+        }
+    });
+
+    // Command: create from currently selected text in an editor
+    let createFromSelection = vscode.commands.registerCommand('create.tre.createFromSelection', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('No active editor.');
+            return;
+        }
+        const selection = editor.selection;
+        const text = editor.document.getText(selection);
+        if (!text.trim()) {
+            vscode.window.showErrorMessage('No text selected.');
+            return;
+        }
+        const treeLines = extractTreeLines(text);
+        if (treeLines.length === 0) {
+            vscode.window.showErrorMessage('No valid tree structure found in selection.');
+            return;
+        }
+        let rootName = 'materialized';
+        // If the current document is a .tre file, use its name (without extension)
+        if (editor.document.fileName.endsWith('.tre')) {
+            rootName = path.basename(editor.document.fileName, '.tre');
+        }
+        const basePath = path.join(path.dirname(editor.document.fileName), rootName);
+        try {
+            parseTreeToStructure(treeLines, basePath);
+            vscode.window.showInformationMessage(`Materialized structure to ${basePath}`);
+            vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(basePath));
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Error: ${err.message}`);
+        }
+    });
+
+    context.subscriptions.push(folderToTree, createFromFile, createFromSelection);
 }
 
 export function deactivate() {}
 
-// ── create from .tre file ─────────────────────────────────────────────
-
-async function createFromFile(uri?: vscode.Uri) {
-    let text: string;
-    let baseDir: string;
-
-    if (uri && uri.fsPath) {
-        text = fs.readFileSync(uri.fsPath, 'utf8');
-        baseDir = path.dirname(uri.fsPath);
-    } else {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showWarningMessage('open a .tre file first');
-            return;
-        }
-        text = editor.document.getText();
-        baseDir = editor.document.uri.scheme === 'file'
-            ? path.dirname(editor.document.uri.fsPath)
-            : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '');
-    }
-
-    if (!baseDir) {
-        vscode.window.showWarningMessage('no workspace folder');
-        return;
-    }
-    await runCreate(text, baseDir);
-}
-
-// ── create from selected text ─────────────────────────────────────────
-
-async function createFromSelection() {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) { vscode.window.showWarningMessage('no active editor'); return; }
-
-    const sel = editor.document.getText(editor.selection);
-    if (!sel.trim()) { vscode.window.showWarningMessage('select a tree first'); return; }
-
-    const baseDir = editor.document.uri.scheme === 'file'
-        ? path.dirname(editor.document.uri.fsPath)
-        : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '');
-
-    if (!baseDir) { vscode.window.showWarningMessage('no workspace folder'); return; }
-    await runCreate(sel, baseDir);
-}
-
-function previewFromSelection() {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) { vscode.window.showWarningMessage('no active editor'); return; }
-
-    const sel = editor.document.getText(editor.selection);
-    if (!sel.trim()) { vscode.window.showWarningMessage('select a tree first'); return; }
-
-    const entries = parseTree(sel);
-    output.clear();
-    output.appendLine('preview — nothing will be written');
-    output.appendLine('');
-    for (const e of entries) {
-        output.appendLine(`${e.isDirectory ? '[D]' : '[F]'} ${e.path}`);
-    }
-    output.appendLine('');
-    output.appendLine(`${entries.length} entries.`);
-    output.show();
-}
-
-// ── reverse: folder → .tre ────────────────────────────────────────────
-
-async function folderToTree(uri?: vscode.Uri) {
-    if (!uri || !uri.fsPath) {
-        vscode.window.showWarningMessage('right-click a folder in explorer');
-        return;
-    }
-    let stat;
-    try {
-        stat = fs.statSync(uri.fsPath);
-    } catch {
-        vscode.window.showErrorMessage('could not read folder');
-        return;
-    }
-    if (!stat.isDirectory()) {
-        vscode.window.showWarningMessage("that's not a folder");
-        return;
-    }
-
-    const treeText = generateTree(uri.fsPath);
-    const doc = await vscode.workspace.openTextDocument({
-        content: treeText,
-        language: 'tre',
+function walkDirectory(dir: string, indent: string = ''): string {
+    let result = '';
+    const entries = fs.readdirSync(dir);
+    const sorted = entries.sort((a, b) => {
+        const aIsDir = fs.statSync(path.join(dir, a)).isDirectory();
+        const bIsDir = fs.statSync(path.join(dir, b)).isDirectory();
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
+        return a.localeCompare(b);
     });
-    await vscode.window.showTextDocument(doc);
-}
-
-// simple 2-space format. matches read.tre output.
-function generateTree(rootPath: string): string {
-    const lines: string[] = [];
-    walkDir(rootPath, 0, lines);
-    return lines.join('\n') + '\n';
-}
-
-function walkDir(dir: string, depth: number, lines: string[]) {
-    const indent = '  '.repeat(depth);
-    lines.push(indent + path.basename(dir) + '/');
-
-    let items: fs.Dirent[];
-    try {
-        items = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-        return;
-    }
-
-    const filtered = items
-        .filter(e => !IGNORE.has(e.name))
-        .sort((a, b) => {
-            if (a.isDirectory() !== b.isDirectory()) {
-                return a.isDirectory() ? -1 : 1;
-            }
-            return a.name.localeCompare(b.name);
-        });
-
-    for (const entry of filtered) {
-        if (entry.isDirectory()) {
-            walkDir(path.join(dir, entry.name), depth + 1, lines);
-        } else {
-            lines.push('  '.repeat(depth + 1) + entry.name);
+    for (let i = 0; i < sorted.length; i++) {
+        const name = sorted[i];
+        const fullPath = path.join(dir, name);
+        const isDir = fs.statSync(fullPath).isDirectory();
+        const isLast = i === sorted.length - 1;
+        const prefix = indent + (isLast ? '  ' : '  ');
+        result += prefix + name;
+        if (isDir) result += '/';
+        result += '\n';
+        if (isDir) {
+            const newIndent = indent + (isLast ? '  ' : '  ');
+            result += walkDirectory(fullPath, newIndent);
         }
     }
-}
-
-// ── shared create logic ───────────────────────────────────────────────
-
-async function runCreate(treeText: string, baseDir: string) {
-    const entries = parseTree(treeText);
-    if (entries.length === 0) {
-        vscode.window.showWarningMessage('no entries parsed');
-        return;
-    }
-
-    const choice = await vscode.window.showInformationMessage(
-        `create ${entries.length} entries in ${baseDir}?`,
-        { modal: true },
-        'create'
-    );
-    if (choice !== 'create') { return; }
-
-    let created = 0;
-    let skipped = 0;
-    output.clear();
-    output.appendLine(`base: ${baseDir}`);
-    output.appendLine('');
-
-    for (const e of entries) {
-        const full = path.join(baseDir, e.path);
-        try {
-            if (fs.existsSync(full)) {
-                output.appendLine(`skip   ${e.path} (exists)`);
-                skipped++;
-                continue;
-            }
-            if (e.isDirectory) {
-                fs.mkdirSync(full, { recursive: true });
-                output.appendLine(`mkdir  ${e.path}`);
-            } else {
-                fs.mkdirSync(path.dirname(full), { recursive: true });
-                fs.writeFileSync(full, '');
-                output.appendLine(`touch  ${e.path}`);
-            }
-            created++;
-        } catch (err: any) {
-            output.appendLine(`error  ${e.path} — ${err.message}`);
-        }
-    }
-
-    output.appendLine('');
-    output.appendLine(`${created} created, ${skipped} skipped.`);
-    output.show();
-    vscode.window.showInformationMessage(`created ${created}, skipped ${skipped}`);
+    return result;
 }

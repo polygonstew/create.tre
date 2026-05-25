@@ -1,140 +1,110 @@
-// turn tree text into a flat list of paths + dir/file flags.
-// handles three input formats:
-//   1. simple 2-space indent (what read.tre and our generateTree produce)
-//   2. markdown box-drawing (├── └── with 2 dashes, common in README files)
-//   3. windows 'tree /F' output (with PATH listing header, ascii or unicode)
+import * as fs from 'fs';
+import * as path from 'path';
 
-export type Entry = {
-    path: string;
-    isDirectory: boolean;
-};
-
-const TREE_CHARS = new Set(['│', '├', '└', '─', '+', '|', '\\', '-', ' ']);
-
-export function parseTree(input: string): Entry[] {
-    let lines = input.replace(/\t/g, '    ').split('\n');
-
-    const isTreeFOutput = lines.some(l =>
-        l.includes('PATH listing for volume') ||
-        l.startsWith('Volume serial number'));
-
-    const hasBoxDrawing = lines.some(l =>
-        l.includes('├') || l.includes('└') || l.includes('│') ||
-        l.includes('+---') || l.includes('\\---'));
-
-    if (isTreeFOutput) {
-        lines = normalizeTreeFOutput(lines);
-    } else if (hasBoxDrawing) {
-        lines = normalizeBoxDrawing(lines);
+function stripComment(line: string): string {
+    let commentIndex = -1;
+    for (let i = 0; i < line.length; i++) {
+        if (line[i] === '#') {
+            commentIndex = i;
+            break;
+        }
+        if (i + 1 < line.length && line[i] === '/' && line[i+1] === '/') {
+            commentIndex = i;
+            break;
+        }
+        if (line[i] === '(') {
+            commentIndex = i;
+            break;
+        }
     }
-
-    return parseSimple(lines);
+    if (commentIndex >= 0) line = line.substring(0, commentIndex);
+    return line.trimEnd();
 }
 
-// tree /F output -> simple format. drops C:. root, uses markers to find folders.
-function normalizeTreeFOutput(lines: string[]): string[] {
+export function extractTreeLines(content: string): string[] {
+    const lines = content.split(/\r?\n/);
     const result: string[] = [];
+    let inTree = false;
 
-    for (const rawLine of lines) {
-        const stripped = rawLine.trimEnd();
-        if (stripped === '') continue;
-        if (stripped.includes('PATH listing')) continue;
-        if (stripped.startsWith('Volume serial number')) continue;
-        if (stripped.endsWith(':.')) continue;
-
-        let nameStart = 0;
-        while (nameStart < stripped.length && TREE_CHARS.has(stripped[nameStart])) {
-            nameStart++;
-        }
-        const name = stripped.slice(nameStart).trim();
-        if (!name) continue;
-
-        // tree /F skips C:. root, so col 4 is actually depth 0
-        const naturalDepth = Math.floor(nameStart / 4);
-        if (naturalDepth < 1) continue;
-        const depth = naturalDepth - 1;
-
-        // folder marker at (naturalDepth-1)*4
-        let isFolder = name.endsWith('/');
-        if (!isFolder) {
-            const markerPos = (naturalDepth - 1) * 4;
-            if (markerPos < stripped.length) {
-                const m = stripped[markerPos];
-                if (m === '├' || m === '└' || m === '+' || m === '\\') {
-                    isFolder = true;
-                }
-            }
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        let line = stripComment(rawLine);
+        if (line.trim() === '') {
+            if (inTree) break;
+            continue;
         }
 
-        const cleanName = name.endsWith('/') ? name.slice(0, -1) : name;
-        result.push('  '.repeat(depth) + cleanName + (isFolder ? '/' : ''));
+        const hasBoxDrawing = /[├└│─\+\-\\|]/.test(line);
+        const trimmed = line.trimStart();
+        const leadingSpaces = line.length - trimmed.length;
+        const hasIndent = leadingSpaces > 0 || (i === 0 && result.length === 0);
+        const endsWithSlash = trimmed.endsWith('/');
+        const hasFileExt = /\.\w+$/.test(trimmed) && !trimmed.includes(' ');
+
+        const looksLikeTree = hasBoxDrawing || (hasIndent && (endsWithSlash || hasFileExt));
+
+        if (looksLikeTree) {
+            inTree = true;
+            result.push(line);
+        } else if (inTree) {
+            break;
+        }
     }
-
     return result;
 }
 
-// markdown box-drawing -> simple format. trailing / is the only folder signal.
-function normalizeBoxDrawing(lines: string[]): string[] {
-    const result: string[] = [];
+export function parseTreeToStructure(lines: string[], basePath: string) {
+    if (!fs.existsSync(basePath)) fs.mkdirSync(basePath, { recursive: true });
+
+    const stack: { path: string; depth: number }[] = [{ path: basePath, depth: -1 }];
 
     for (const rawLine of lines) {
-        const stripped = rawLine.trimEnd();
-        if (stripped === '') continue;
+        let line = rawLine.trimEnd();
+        if (line === '') continue;
 
-        let nameStart = 0;
-        while (nameStart < stripped.length && TREE_CHARS.has(stripped[nameStart])) {
-            nameStart++;
+        let depth = 0;
+        let isFolder = line.endsWith('/');
+        let name = isFolder ? line.slice(0, -1) : line;
+
+        const hasBoxDrawing = /[├└│─\+\-\\|]/.test(line);
+        if (hasBoxDrawing) {
+            name = line.replace(/^[├└│─\+\-\\| ]+/, '').trim();
+            if (name === '') continue;
+            isFolder = name.endsWith('/');
+            if (isFolder) name = name.slice(0, -1);
+            const prefix = line.substring(0, line.indexOf(name));
+            depth = (prefix.match(/[├└│\+\-\\|]/g) || []).length;
+        } else {
+            const leadingSpaces = line.search(/\S/);
+            depth = Math.floor(leadingSpaces / 2);
+            const entry = line.trim();
+            isFolder = entry.endsWith('/');
+            name = isFolder ? entry.slice(0, -1) : entry;
         }
-        const name = stripped.slice(nameStart).trim();
-        if (!name) continue;
 
-        const depth = Math.floor(nameStart / 4);
-        const isFolder = name.endsWith('/');
-        const cleanName = isFolder ? name.slice(0, -1) : name;
+        while (stack.length > 1 && stack[stack.length - 1].depth >= depth) {
+            stack.pop();
+        }
+        const parentPath = stack[stack.length - 1].path;
+        const fullPath = path.join(parentPath, name);
 
-        result.push('  '.repeat(depth) + cleanName + (isFolder ? '/' : ''));
-    }
-
-    return result;
-}
-
-// the actual parser. 2-space indent, trailing / for folders.
-function parseSimple(lines: string[]): Entry[] {
-    const entries: Entry[] = [];
-    const stack: string[] = [];
-
-    for (const rawLine of lines) {
-        const hashIdx = rawLine.indexOf('#');
-        const stripped = (hashIdx === -1 ? rawLine : rawLine.slice(0, hashIdx)).trimEnd();
-        if (stripped.trim() === '') continue;
-
-        let spaces = 0;
-        while (spaces < stripped.length && stripped[spaces] === ' ') spaces++;
-        const depth = Math.floor(spaces / 2);
-
-        const name = stripped.slice(spaces).trim();
-        if (!name) continue;
-
-        const isDir = name.endsWith('/');
-        const cleanName = isDir ? name.slice(0, -1) : name;
-
-        stack.length = depth;
-        stack.push(cleanName);
-
-        // promote previous to dir if children appear under it
-        if (entries.length > 0) {
-            const prev = entries[entries.length - 1];
-            const prevDepth = prev.path.split('/').length - 1;
-            if (depth > prevDepth && !prev.isDirectory) {
-                prev.isDirectory = true;
+        if (isFolder) {
+            if (!fs.existsSync(fullPath)) {
+                fs.mkdirSync(fullPath, { recursive: true });
+                console.log(`created folder: ${fullPath}`);
+            } else {
+                console.log(`folder exists: ${fullPath} (merging)`);
+            }
+            stack.push({ path: fullPath, depth });
+        } else {
+            const parentDir = path.dirname(fullPath);
+            if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
+            if (!fs.existsSync(fullPath)) {
+                fs.writeFileSync(fullPath, `// auto-generated by create.tre\n// ${name}\n`, 'utf8');
+                console.log(`created file: ${fullPath}`);
+            } else {
+                console.log(`file exists, skipping: ${fullPath}`);
             }
         }
-
-        entries.push({
-            path: stack.join('/'),
-            isDirectory: isDir,
-        });
     }
-
-    return entries;
 }

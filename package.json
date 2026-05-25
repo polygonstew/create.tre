@@ -39,51 +39,41 @@
         ]
       }
     ],
-    "commands": [
-      {
-        "command": "createTre.createFromFile",
-        "title": "create.tre: Create From File"
-      },
-      {
-        "command": "createTre.createFromSelection",
-        "title": "create.tre: Create From Selection"
-      },
-      {
-        "command": "createTre.previewFromSelection",
-        "title": "create.tre: Preview From Selection"
-      },
-      {
-        "command": "createTre.folderToTree",
-        "title": "create.tre: Folder To Tree"
-      }
-    ],
-    "menus": {
-      "explorer/context": [
-        {
-          "command": "createTre.createFromFile",
-          "when": "resourceExtname == .tre",
-          "group": "createTre"
-        },
-        {
-          "command": "createTre.folderToTree",
-          "when": "explorerResourceIsFolder",
-          "group": "createTre@1"
-        }
-      ],
-      "editor/context": [
-        {
-          "command": "createTre.createFromSelection",
-          "when": "editorHasSelection",
-          "group": "createTre"
-        },
-        {
-          "command": "createTre.previewFromSelection",
-          "when": "editorHasSelection",
-          "group": "createTre"
-        }
-      ]
+      "commands": [
+              {
+                  "command": "create.tre.folderToTree",
+                  "title": "create.tre: Folder To Tree"
+              },
+              {
+                  "command": "create.tre.createFromFile",
+                  "title": "create.tre: Create From File"
+              },
+              {
+                  "command": "create.tre.createFromSelection",
+                  "title": "create.tre: Create From Selection"
+              }
+          ],
+          "menus": {
+              "explorer/context": [
+                  {
+                      "when": "explorerResourceIsFolder",
+                      "command": "create.tre.folderToTree",
+                      "group": "2_workspace"
+                  },
+                  {
+                      "when": "resourceExtname == .tre",
+                      "command": "create.tre.createFromFile",
+                      "group": "2_workspace"
+                  }
+              ],
+              "editor/context": [
+                  {
+                      "command": "create.tre.createFromSelection",
+                      "group": "2_workspace"
+            }
+        ]
     }
-  },
+},
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"

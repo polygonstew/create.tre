@@ -1,8 +1,8 @@
 demo/
-├── readme.md
+├── readme.md      # This is the section that is removed.
 ├── src/
-│   ├── main.py
+│   ├── main.py                  # with every character after your directory
 │   └── utils/
 │       └── helper.py
-└── tests/
-    └── test_main.py
+└── tests/                    ( this is the section that is not included)
+    └── test_main.py   !(*#@%$# this is the section that is not included)
