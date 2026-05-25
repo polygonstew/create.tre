@@ -90,13 +90,6 @@ demo/
 
 and Windows `tree /F /A` output — paste it into a selection and scaffold.
 
-## notes
-
-- creates empty files. names only, no content.
-- mixed indents in the same tree will misparse. pick spaces or pipes, not both.
-- "Create From File" writes immediately. there is no preview step for the file path yet — use "Preview From Selection" on the file's contents if you want a dry run.
-- behavior on existing target paths is not yet defined. don't run on anything you haven't committed.
-
 ## companion
 
 [read.tre](https://github.com/polygonstew/read.tre) is the CLI for the same `.tre` format. install via winget:
@@ -106,11 +99,4 @@ winget install polygonstew.read.tre
 ```
 
 use create.tre when you're in the editor. use read.tre when you're in a terminal, or when you want to capture an existing folder as a `.tre`.
-
-## roadmap
-
-- [ ] syntax highlighting (`.tre` is registered as a language id but no grammar is wired)
-- [ ] preview path for the file-based command, not just selection
-- [ ] overwrite confirmation
-- [ ] forward direction: right-click a folder → generate `.tre`
-- [ ] marketplace publish
+search vscode extensions for "create.tre"
